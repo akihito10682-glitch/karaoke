@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カラオケ予約システム</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    // Lucide icons (simplified SVG)
+    const Music = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+      </svg>
+    );
+    
+    const Users = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    );
+    
+    const Trash2 = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    );
+    
+    const Check = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
+    );
+    
+    const Plus = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+      </svg>
+    );
+    
+    const X = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    );
+    
+    const Copy = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+    );
+    
+    const ArrowRight = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+      </svg>
+    );
+    
+    const LogIn = ({ className }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+      </svg>
+    );
+
+    // Storage simulation using localStorage
+    const storage = {
+      get: async (key) => {
+        const value = localStorage.getItem(key);
+        return value ? { key, value, shared: true } : null;
+      },
+      set: async (key, value) => {
+        localStorage.setItem(key, value);
+        return { key, value, shared: true };
+      }
+    };
+
+    function KaraokeQueue() {
+      const [roomCode, setRoomCode] = useState('');
+      const [roomTitle, setRoomTitle] = useState('');
+      const [newRoomTitle, setNewRoomTitle] = useState('');
+      const [isInRoom, setIsInRoom] = useState(false);
+      const [showCopyNotice, setShowCopyNotice] = useState(false);
+      const [joinCode, setJoinCode] = useState('');
+      const [showJoinScreen, setShowJoinScreen] = useState(false);
+
+      const [members, setMembers] = useState([]);
+      const [newMemberName, setNewMemberName] = useState('');
+      const [showAddMember, setShowAddMember] = useState(false);
+      
+      const [newSong, setNewSong] = useState('');
+      const [selectedAdder, setSelectedAdder] = useState('');
+      const [songs, setSongs] = useState([]);
+      
+      const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+      const [showCompleteConfirm, setShowCompleteConfirm] = useState(null);
+      const [showVoteModal, setShowVoteModal] = useState(null);
+      const [selectedVoter, setSelectedVoter] = useState('');
+      const [showMemberDeleteConfirm, setShowMemberDeleteConfirm] = useState(null);
+
+      const generateRoomCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      };
+
+      const loadRoomData = async (code) => {
+        try {
+          const titleResult = await storage.get(`room-${code}-title`);
+          if (titleResult && titleResult.value) {
+            setRoomTitle(JSON.parse(titleResult.value));
+          } else {
+            alert('ルームコードが見つかりません');
+            setIsInRoom(false);
+            setRoomCode('');
+            return false;
+          }
+        } catch (error) {
+          alert('ルームコードが見つかりません');
+          setIsInRoom(false);
+          setRoomCode('');
+          return false;
+        }
+
+        try {
+          const membersResult = await storage.get(`room-${code}-members`);
+          if (membersResult && membersResult.value) {
+            setMembers(JSON.parse(membersResult.value));
+          }
+        } catch (error) {
+          console.log('No existing members found');
+        }
+
+        try {
+          const songsResult = await storage.get(`room-${code}-songs`);
+          if (songsResult && songsResult.value) {
+            setSongs(JSON.parse(songsResult.value));
+          }
+        } catch (error) {
+          console.log('No existing songs found');
+        }
+
+        return true;
+      };
+
+      const createRoom = async () => {
+        if (!newRoomTitle.trim()) {
+          alert('タイトルを入力してください');
+          return;
+        }
+
+        const code = generateRoomCode();
+        setRoomCode(code);
+        setRoomTitle(newRoomTitle.trim());
+        
+        await storage.set(`room-${code}-title`, JSON.stringify(newRoomTitle.trim()));
+        
+        setIsInRoom(true);
+      };
+
+      const joinRoom = async () => {
+        if (!joinCode.trim()) {
+          alert('ルームコードを入力してください');
+          return;
+        }
+
+        const code = joinCode.trim().toUpperCase();
+        const success = await loadRoomData(code);
+        
+        if (success) {
+          setRoomCode(code);
+          setIsInRoom(true);
+          setShowJoinScreen(false);
+        }
+      };
+
+      const copyRoomCode = () => {
+        navigator.clipboard.writeText(roomCode);
+        setShowCopyNotice(true);
+        setTimeout(() => setShowCopyNotice(false), 2000);
+      };
+
+      const saveMembers = async (updatedMembers) => {
+        try {
+          await storage.set(`room-${roomCode}-members`, JSON.stringify(updatedMembers));
+          setMembers(updatedMembers);
+        } catch (error) {
+          console.error('Failed to save members:', error);
+        }
+      };
+
+      const saveSongs = async (updatedSongs) => {
+        try {
+          await storage.set(`room-${roomCode}-songs`, JSON.stringify(updatedSongs));
+          setSongs(updatedSongs);
+        } catch (error) {
+          console.error('Failed to save songs:', error);
+        }
+      };
+
+      const addMember = () => {
+        if (!newMemberName.trim()) return;
+        if (members.includes(newMemberName.trim())) {
+          alert('この名前はすでに登録されています');
+          return;
+        }
+        
+        const updatedMembers = [...members, newMemberName.trim()];
+        saveMembers(updatedMembers);
+        setNewMemberName('');
+        setShowAddMember(false);
+      };
+
+      const removeMember = (memberName) => {
+        const updatedMembers = members.filter(m => m !== memberName);
+        saveMembers(updatedMembers);
+        
+        const updatedSongs = songs.map(song => ({
+          ...song,
+          votes: song.votes.filter(v => v !== memberName)
+        })).filter(song => song.addedBy !== memberName);
+        saveSongs(sortSongs(updatedSongs));
+        setShowMemberDeleteConfirm(null);
+      };
+
+      const addSong = () => {
+        if (!newSong.trim() || !selectedAdder) {
+          alert('曲名と追加者を選択してください');
+          return;
+        }
+
+        const song = {
+          id: Date.now(),
+          title: newSong.trim(),
+          addedBy: selectedAdder,
+          votes: [selectedAdder],
+          timestamp: Date.now()
+        };
+
+        const updatedSongs = [...songs, song];
+        saveSongs(sortSongs(updatedSongs));
+        setNewSong('');
+        setSelectedAdder('');
+      };
+
+      const handleVote = (songId) => {
+        if (!selectedVoter) {
+          alert('投票する人を選択してください');
+          return;
+        }
+
+        const updatedSongs = songs.map(song => {
+          if (song.id === songId) {
+            const hasVoted = song.votes.includes(selectedVoter);
+            return {
+              ...song,
+              votes: hasVoted
+                ? song.votes.filter(v => v !== selectedVoter)
+                : [...song.votes, selectedVoter]
+            };
+          }
+          return song;
+        });
+        saveSongs(sortSongs(updatedSongs));
+        setShowVoteModal(null);
+        setSelectedVoter('');
+      };
+
+      const sortSongs = (songList) => {
+        return [...songList].sort((a, b) => b.votes.length - a.votes.length);
+      };
+
+      const deleteSong = (songId) => {
+        const updatedSongs = songs.filter(song => song.id !== songId);
+        saveSongs(updatedSongs);
+        setShowDeleteConfirm(null);
+      };
+
+      const completeSong = (songId) => {
+        const updatedSongs = songs.filter(song => song.id !== songId);
+        saveSongs(updatedSongs);
+        setShowCompleteConfirm(null);
+      };
+
+      const leaveRoom = () => {
+        setIsInRoom(false);
+        setRoomCode('');
+        setRoomTitle('');
+        setMembers([]);
+        setSongs([]);
+        setShowJoinScreen(false);
+      };
+
+      if (showJoinScreen) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
+              <div className="text-center mb-8">
+                <LogIn className="w-20 h-20 mx-auto text-purple-600 mb-4" />
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">ルームに参加</h1>
+                <p className="text-gray-600">6桁のルームコードを入力してください</p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="例: ABC123"
+                    maxLength={6}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 text-center text-2xl font-bold tracking-wider"
+                    onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
+                  />
+                </div>
+                
+                <button
+                  onClick={joinRoom}
+                  className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                >
+                  参加する
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={() => setShowJoinScreen(false)}
+                  className="w-full bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-400 transition"
+                >
+                  戻る
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (!isInRoom) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
+              <div className="text-center mb-8">
+                <Music className="w-20 h-20 mx-auto text-purple-600 mb-4" />
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">カラオケ予約システム</h1>
+                <p className="text-gray-600">新しいセッションを作成または参加</p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    セッションタイトル
+                  </label>
+                  <input
+                    type="text"
+                    value={newRoomTitle}
+                    onChange={(e) => setNewRoomTitle(e.target.value)}
+                    placeholder="例: 忘年会カラオケ"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+                    onKeyPress={(e) => e.key === 'Enter' && createRoom()}
+                  />
+                </div>
+                
+                <button
+                  onClick={createRoom}
+                  className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                >
+                  新規作成
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">または</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowJoinScreen(true)}
+                  className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-5 h-5" />
+                  既存のルームに参加
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 p-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
+              <div className="bg-purple-600 text-white p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Music className="w-8 h-8" />
+                    <div>
+                      <h1 className="text-2xl font-bold">{roomTitle}</h1>
+                      <p className="text-purple-200 text-sm">ルームコード: {roomCode}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={copyRoomCode}
+                      className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      {showCopyNotice ? 'コピーしました！' : 'コード共有'}
+                    </button>
+                    <button
+                      onClick={leaveRoom}
+                      className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition"
+                    >
+                      退出
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      <span className="font-semibold">参加メンバー ({members.length})</span>
+                    </div>
+                    <button
+                      onClick={() => setShowAddMember(!showAddMember)}
+                      className="bg-purple-700 hover:bg-purple-800 px-3 py-1 rounded-lg text-sm font-semibold transition flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      追加
+                    </button>
+                  </div>
+
+                  {showAddMember && (
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="text"
+                        value={newMemberName}
+                        onChange={(e) => setNewMemberName(e.target.value)}
+                        placeholder="メンバー名"
+                        className="flex-1 px-3 py-2 rounded-lg text-gray-800 text-sm focus:outline-none"
+                        onKeyPress={(e) => e.key === 'Enter' && addMember()}
+                      />
+                      <button
+                        onClick={addMember}
+                        className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-50 transition"
+                      >
+                        追加
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    {members.length === 0 ? (
+                      <p className="text-purple-200 text-sm">まだメンバーが登録されていません</p>
+                    ) : (
+                      members.map(member => (
+                        <div
+                          key={member}
+                          className="bg-purple-700 px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                        >
+                          <span>{member}</span>
+                          <button
+                            onClick={() => setShowMemberDeleteConfirm(member)}
+                            className="hover:bg-purple-800 rounded-full p-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={newSong}
+                    onChange={(e) => setNewSong(e.target.value)}
+                    placeholder="曲名を入力"
+                    className="w-full px-4 py-3 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                    onKeyPress={(e) => e.key === 'Enter' && addSong()}
+                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedAdder}
+                      onChange={(e) => setSelectedAdder(e.target.value)}
+                      className="flex-1 px-4 py-3 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                      disabled={members.length === 0}
+                    >
+                      <option value="">追加する人を選択</option>
+                      {members.map(member => (
+                        <option key={member} value={member}>{member}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={addSong}
+                      disabled={members.length === 0}
+                      className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition disabled:bg-gray-300 disabled:text-gray-500"
+                    >
+                      追加
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {songs.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Music className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg">まだ曲が追加されていません</p>
+                    <p className="text-sm">最初の曲を追加してみましょう！</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {songs.map((song, index) => (
+                      <div
+                        key={song.id}
+                        className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="bg-purple-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                                {index + 1}
+                              </span>
+                              <div>
+                                <h3 className="font-bold text-lg text-gray-800">{song.title}</h3>
+                                <p className="text-sm text-gray-600">追加: {song.addedBy}</p>
+                                {song.votes.length > 0 && (
+                                  <p className="text-xs text-purple-600 mt-1">
+                                    歌いたい: {song.votes.join(', ')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setShowVoteModal(song.id)}
+                              className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold transition hover:bg-purple-700 flex items-center gap-2"
+                            >
+                              <Users className="w-4 h-4" />
+                              <span>{song.votes.length}</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => setShowCompleteConfirm(song.id)}
+                              className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                              title="完了"
+                            >
+                              <Check className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => setShowDeleteConfirm(song.id)}
+                              className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                              title="削除"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {showMemberDeleteConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+                <h3 className="text-xl font-bold mb-4">メンバー削除の確認</h3>
+                <p className="text-gray-600 mb-6">{showMemberDeleteConfirm}さんを削除してもよろしいですか？</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => removeMember(showMemberDeleteConfirm)}
+                    className="flex-1 bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition"
+                  >
+                    削除
+                  </button>
+                  <button
+                    onClick={() => setShowMemberDeleteConfirm(null)}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showVoteModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+                <h3 className="text-xl font-bold mb-4">投票する人を選択</h3>
+                <select
+                  value={selectedVoter}
+                  onChange={(e) => setSelectedVoter(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-4 focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">選択してください</option>
+                  {members.map(member => (
+                    <option key={member} value={member}>{member}</option>
+                  ))}
+                </select>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleVote(showVoteModal)}
+                    className="flex-1 bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition"
+                  >
+                    投票
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowVoteModal(null);
+                      setSelectedVoter('');
+                    }}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400 transition"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+                <h3 className="text-xl font-bold mb-4">削除の確認</h3>
+                <p className="text-gray-600 mb-6">この曲を削除してもよろしいですか?</p
